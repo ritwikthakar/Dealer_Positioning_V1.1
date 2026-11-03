@@ -1,26 +1,9 @@
-# Dealer Positioning Command Center — Refactored
+# QQQ OHLC integration patch
 
-Run `pip install -r requirements.txt` and `streamlit run app.py`.
+Replace these five files in the repository root: `app.py`, `data_engine.py`, `technical_engine.py`, `sentiment_engine.py` (the latter is included for compatibility with the previous sentiment fix). The fifth file `test_ohlc.py` is an optional local regression test; it references files in `/mnt/data` and is not needed for deployment.
 
-## Modules
-- `data_engine.py`: CSV detection, parsing, expiration filtering, diagnostics.
-- `positioning_engine.py`: GEX/DEX, strike concentrations, profile crossing, flow proxies.
-- `volatility_engine.py`: weekly expected-move history, IV term structure, regime heuristic.
-- `strategy_engine.py`: defined-risk butterfly scanner.
-- `app.py`: five-tab Streamlit presentation.
+Upload the existing eight options CSV files plus `qqq_price-history-11-03-2026.csv` in the Streamlit sidebar. The new price-history schema is recognized by `Time`, `Open`, `High`, `Low`, `Latest`. The price-history data is merged into the options history on exact dates; only OHLC rows through the latest options-history date are considered. The OHLC close is used consistently for EMA and Donchian technicals. Dealer positioning continues to use the options-history close, and mismatches above 0.25% generate a warning. No future OHLC bar is used for the snapshot.
 
-## Important methodology limitations
-- Historical aggregate GEX/DEX and current snapshot positioning may use different units or timestamps. Do not compare their absolute values directly.
-- A strike-profile zero crossing is **not** a recalculated gamma flip across simulated spot prices.
-- The strike-GEX CSV is aggregate, not expiry-specific.
-- Option flow bid/ask classification is a directional **proxy**, not verified opening/closing trades.
-- Weekly expected-move history uses an approximation from 30-day IV, not option-expiry-specific historical IV.
-- Butterfly natural quotes are conservative quote-based estimates, not guaranteed executable fills.
-- Historical date selection disables snapshot analysis rather than presenting misleading historical positioning.
-- Expiration selection applies to expiration GEX/DEX tables, not aggregate strike GEX.
+Donchian 20 and 55 levels exclude the current day's bar. The technical score uses the EMA200 and Donchian20 midpoint; Donchian55 is displayed as context, not an extra weighted factor. The existing 25/30/20/15/10 sentiment weights remain experimental. Signal coverage is not a confidence probability. Strategy ranking remains unchanged.
 
-## Next stage
-Add provenance metadata (export time, symbol, spot, currency and units) to each dataset; create a true spot-repriced gamma exposure profile and validate scoring against out-of-sample data.
-
-## Link
-https://dealerpositioningv11-7t6lat73vhr6gry62xqv9c.streamlit.app/
+The patch was syntax-checked and the OHLC merge and technical indicator logic were tested with the user's QQQ options history and Barchart price-history files. Streamlit rendering and strategy pricing have not been end-to-end tested.

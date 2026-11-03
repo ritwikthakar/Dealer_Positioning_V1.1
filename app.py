@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from data_engine import REQUIRED, load_files, normalize, check_quality, future_expirations
+from data_engine import REQUIRED, load_files, normalize, merge_price_history, check_quality, future_expirations
 from positioning_engine import positioning
 from volatility_engine import weekly_em_history, expected_move_table, regime
 from sentiment_engine import sentiment
@@ -22,6 +22,8 @@ with st.sidebar:
     if missing:st.error('Missing: '+', '.join(sorted(missing)));st.stop()
     data=normalize(raw)
     history=data['history'].dropna(subset=['Date','Close Price']).sort_values('Date')
+    if 'price_history' in data:
+        history=merge_price_history(history,data['price_history'],history.Date.max())
     if history.empty:st.error('No valid history');st.stop()
     latest=history.Date.max().date()
     selected=st.date_input('Analysis date',latest,min_value=history.Date.min().date(),max_value=latest)
@@ -65,7 +67,7 @@ with st.container(border=True):
     a,b,c=st.columns(3)
     a.metric('Market sentiment',s['label'])
     b.metric('Gamma regime',s['gamma'])
-    c.metric('Confidence / coverage',f'{s["confidence"]}%')
+    c.metric('Signal coverage',f'{s["coverage"]}%')
     st.divider()
     d,e=st.columns(2)
     d.metric('Net GEX',compact_exposure(p['gex']),help=f'Raw GEX: {p["gex"]:,.0f}')
@@ -97,6 +99,10 @@ with t2:
     c1.metric('200 EMA',f'{tech["ema200"]:.2f}' if np.isfinite(tech['ema200']) else 'Unavailable')
     c2.metric('Donchian 20 high',f'{tech["donchian_high"]:.2f}' if np.isfinite(tech['donchian_high']) else 'Unavailable')
     c3.metric('Donchian 20 low',f'{tech["donchian_low"]:.2f}' if np.isfinite(tech['donchian_low']) else 'Unavailable')
+    c4,c5,c6=st.columns(3)
+    c4.metric('Donchian 55 high',f'{tech["donchian55_high"]:.2f}' if np.isfinite(tech['donchian55_high']) else 'Unavailable')
+    c5.metric('Donchian 55 low',f'{tech["donchian55_low"]:.2f}' if np.isfinite(tech['donchian55_low']) else 'Unavailable')
+    c6.metric('Donchian 20 midpoint',f'{tech["donchian_mid"]:.2f}' if np.isfinite(tech['donchian_mid']) else 'Unavailable')
     for note in s['warnings']:st.caption(note)
     if not weekly.empty:st.dataframe(weekly.tail(15),use_container_width=True,hide_index=True)
 with t3:
@@ -146,4 +152,4 @@ with t5:
         st.info('Calendar maximum loss is not shown as defined: early exercise/assignment and exit timing can alter risk. Diagonals, credit spreads, double calendars and BWBs remain planned extensions, not fabricated recommendations.')
 if diagnostics:
     with st.expander('Data provenance and quality',expanded=True):
-        st.json({'files':names,'latest_history':str(latest),'issues':issues,'chain_loaded':'option_chain' in data,'sentiment_coverage':s['confidence']})
+        st.json({'ohlc_loaded':'price_history' in data,'files':names,'latest_history':str(latest),'issues':issues,'chain_loaded':'option_chain' in data,'sentiment_coverage':s['confidence']})
