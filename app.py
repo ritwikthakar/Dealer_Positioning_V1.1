@@ -49,9 +49,27 @@ em=expected_move_table(data['em'],asof)
 ticker=str(data['flow'].Symbol.dropna().iloc[0]) if data['flow'].Symbol.notna().any() else 'Underlying'
 
 st.subheader(f'{ticker} · {latest} · ${p["spot"]:,.2f}')
-a,b,c,d,e=st.columns(5)
-a.metric('Sentiment',s['label']);b.metric('Gamma regime',s['gamma']);c.metric('Confidence / coverage',f'{s["confidence"]}%')
-d.metric('Net GEX',f'{p["gex"]:,.0f}');e.metric('IV 30d',f'{p["iv30"]:.2f}%')
+# Two responsive rows avoid Streamlit truncating labels and large numbers.
+def compact_exposure(value):
+    if not np.isfinite(value):
+        return '—'
+    if abs(value) >= 1e9:
+        return f'{value / 1e9:,.2f}B'
+    if abs(value) >= 1e6:
+        return f'{value / 1e6:,.2f}M'
+    if abs(value) >= 1e3:
+        return f'{value / 1e3:,.1f}K'
+    return f'{value:,.0f}'
+
+with st.container(border=True):
+    a,b,c=st.columns(3)
+    a.metric('Market sentiment',s['label'])
+    b.metric('Gamma regime',s['gamma'])
+    c.metric('Confidence / coverage',f'{s["confidence"]}%')
+    st.divider()
+    d,e=st.columns(2)
+    d.metric('Net GEX',compact_exposure(p['gex']),help=f'Raw GEX: {p["gex"]:,.0f}')
+    e.metric('30-day implied volatility',f'{p["iv30"]:.2f}%' if np.isfinite(p['iv30']) else '—')
 
 t1,t2,t3,t4,t5=st.tabs(['🎯 Overview','🧭 Regime','🧲 Positioning','🌊 Flow','🏆 Top 5 Strategies'])
 with t1:
